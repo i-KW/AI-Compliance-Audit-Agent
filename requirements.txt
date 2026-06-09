@@ -1,0 +1,25 @@
+# GDPR Privacy Auditor Agent — 依赖清单
+# 安装: pip install -r requirements.txt
+
+# === LangGraph 工作流框架 ===
+langgraph>=0.2.0
+langchain>=0.3.0
+langchain-core>=0.3.0
+langchain-openai>=0.2.0      # OpenAI 兼容的 LLM 调用
+
+# === 向量数据库 ===
+chromadb>=0.5.0
+
+# === SQL 解析 ===
+sqlparse>=0.5.0
+
+# === 状态持久化 ===
+# SqliteSaver 已内置在 langgraph.checkpoint.sqlite 中
+
+# === 工具库 ===
+pydantic>=2.0.0
+python-dotenv>=1.0.0
+
+# === 测试 ===
+pytest>=8.0.0
+pytest-asyncio>=0.24.0

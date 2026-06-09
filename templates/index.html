@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>GDPR Privacy Auditor</title>
+<style>
+    :root {
+        --bg: #0f172a; --card: #1e293b; --border: #334155;
+        --text: #e2e8f0; --muted: #94a3b8; --accent: #38bdf8;
+        --high: #ef4444; --medium: #f59e0b; --low: #22c55e;
+        --pass: #22c55e; --fail: #ef4444;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        background: var(--bg); color: var(--text); line-height: 1.6;
+        min-height: 100vh;
+    }
+    .container { max-width: 1100px; margin: 0 auto; padding: 20px; }
+
+    /* Header */
+    header {
+        text-align: center; padding: 30px 0 20px;
+        border-bottom: 1px solid var(--border); margin-bottom: 30px;
+    }
+    header h1 { font-size: 2rem; font-weight: 700; color: var(--accent); }
+    header p { color: var(--muted); margin-top: 6px; font-size: 0.95rem; }
+
+    /* Cards */
+    .card {
+        background: var(--card); border: 1px solid var(--border);
+        border-radius: 12px; padding: 24px; margin-bottom: 20px;
+    }
+    .card h2 { font-size: 1.1rem; margin-bottom: 12px; color: var(--accent); }
+
+    /* Upload zones */
+    .upload-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 700px) { .upload-grid { grid-template-columns: 1fr; } }
+
+    .upload-zone {
+        border: 2px dashed var(--border); border-radius: 10px;
+        padding: 30px 20px; text-align: center; cursor: pointer;
+        transition: border-color 0.2s, background 0.2s;
+        min-height: 120px; display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+    }
+    .upload-zone:hover, .upload-zone.dragover {
+        border-color: var(--accent); background: rgba(56,189,248,0.05);
+    }
+    .upload-zone.has-file { border-color: var(--low); border-style: solid; }
+    .upload-zone .icon { font-size: 2rem; margin-bottom: 8px; }
+    .upload-zone .label { font-weight: 600; font-size: 0.95rem; }
+    .upload-zone .hint { color: var(--muted); font-size: 0.8rem; margin-top: 4px; }
+    .upload-zone .filename { color: var(--low); font-size: 0.85rem; margin-top: 4px; }
+    .upload-zone input[type=file] { display: none; }
+
+    /* Form */
+    .form-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
+    .form-row input {
+        flex: 1; min-width: 150px; padding: 10px 14px;
+        background: var(--bg); border: 1px solid var(--border);
+        border-radius: 8px; color: var(--text); font-size: 0.9rem;
+    }
+    .form-row input:focus { outline: none; border-color: var(--accent); }
+    .form-row input::placeholder { color: var(--muted); }
+
+    /* Buttons */
+    .btn {
+        display: inline-flex; align-items: center; gap: 8px;
+        padding: 12px 28px; border: none; border-radius: 8px;
+        font-size: 1rem; font-weight: 600; cursor: pointer;
+        transition: opacity 0.2s, transform 0.1s;
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn-primary { background: var(--accent); color: #0f172a; }
+    .btn-primary:hover { opacity: 0.9; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-center { display: flex; justify-content: center; margin: 20px 0; }
+
+    /* Progress */
+    .progress-bar {
+        height: 6px; background: var(--border); border-radius: 3px;
+        margin-top: 12px; overflow: hidden;
+    }
+    .progress-fill {
+        height: 100%; background: var(--accent); border-radius: 3px;
+        transition: width 0.5s ease; width: 0%;
+    }
+    .progress-text { font-size: 0.85rem; color: var(--muted); margin-top: 6px; }
+    .spinner {
+        display: inline-block; width: 16px; height: 16px;
+        border: 2px solid var(--border); border-top-color: var(--accent);
+        border-radius: 50%; animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Results */
+    #results { display: none; }
+    .result-header {
+        display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+        margin-bottom: 16px;
+    }
+    .risk-badge {
+        display: inline-block; padding: 6px 18px; border-radius: 20px;
+        font-weight: 700; font-size: 1.1rem;
+    }
+    .risk-HIGH { background: rgba(239,68,68,0.2); color: var(--high); border: 1px solid var(--high); }
+    .risk-MEDIUM { background: rgba(245,158,11,0.2); color: var(--medium); border: 1px solid var(--medium); }
+    .risk-LOW { background: rgba(34,197,94,0.2); color: var(--low); border: 1px solid var(--low); }
+    .risk-INCONCLUSIVE { background: rgba(148,163,184,0.2); color: var(--muted); border: 1px solid var(--muted); }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 2px; margin-bottom: 16px; flex-wrap: wrap; }
+    .tab-btn {
+        padding: 8px 18px; border: 1px solid var(--border);
+        background: var(--bg); color: var(--muted); border-radius: 8px 8px 0 0;
+        cursor: pointer; font-size: 0.85rem; font-weight: 500;
+    }
+    .tab-btn.active { background: var(--card); color: var(--accent); border-bottom-color: var(--card); }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* Finding cards */
+    .finding {
+        border-left: 4px solid var(--border); padding: 12px 16px;
+        margin-bottom: 10px; background: var(--bg); border-radius: 0 8px 8px 0;
+    }
+    .finding.HIGH { border-left-color: var(--high); }
+    .finding.MEDIUM { border-left-color: var(--medium); }
+    .finding.LOW { border-left-color: var(--low); }
+    .finding .f-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+    .finding .f-title { font-weight: 600; }
+    .finding .f-severity { font-size: 0.75rem; padding: 2px 10px; border-radius: 10px; font-weight: 700; }
+    .f-severity.HIGH { background: rgba(239,68,68,0.2); color: var(--high); }
+    .f-severity.MEDIUM { background: rgba(245,158,11,0.2); color: var(--medium); }
+    .f-severity.LOW { background: rgba(34,197,94,0.2); color: var(--low); }
+    .finding .f-desc { font-size: 0.85rem; color: var(--muted); margin-top: 6px; }
+    .finding .f-articles { font-size: 0.78rem; color: var(--accent); margin-top: 4px; }
+
+    /* Stats row */
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
+    .stat { text-align: center; padding: 14px; background: var(--bg); border-radius: 8px; }
+    .stat .value { font-size: 1.5rem; font-weight: 700; }
+    .stat .label { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
+
+    /* Report */
+    .report-text {
+        background: var(--bg); border: 1px solid var(--border);
+        border-radius: 8px; padding: 20px; font-family: 'Courier New', monospace;
+        font-size: 0.82rem; white-space: pre-wrap; max-height: 600px;
+        overflow-y: auto; line-height: 1.5;
+    }
+
+    /* Toast */
+    .toast {
+        position: fixed; top: 20px; right: 20px; padding: 12px 20px;
+        border-radius: 8px; font-weight: 600; z-index: 1000;
+        animation: slideIn 0.3s ease;
+    }
+    .toast.error { background: var(--high); color: white; }
+    .toast.success { background: var(--low); color: white; }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+    .empty-state { text-align: center; padding: 40px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1>GDPR Privacy Auditor</h1>
+        <p>上传隐私政策和数据库 Schema，一键审计 GDPR 合规风险</p>
+    </header>
+
+    <!-- Input Section -->
+    <div class="card" id="input-card">
+        <h2>上传待分析文件</h2>
+        <div class="upload-grid">
+            <!-- Privacy Document -->
+            <div class="upload-zone" id="zone-privacy" onclick="document.getElementById('file-privacy').click()">
+                <div class="icon">📄</div>
+                <div class="label">隐私政策 / 声明文档</div>
+                <div class="hint">支持 .txt .md .html 等文本文件</div>
+                <div class="filename" id="name-privacy"></div>
+                <input type="file" id="file-privacy" accept=".txt,.md,.html,.csv,.json" onchange="handleFile(this, 'privacy')">
+            </div>
+            <!-- Data Schema -->
+            <div class="upload-zone" id="zone-schema" onclick="document.getElementById('file-schema').click()">
+                <div class="icon">🗄️</div>
+                <div class="label">数据表结构 / SQL DDL</div>
+                <div class="hint">支持 .sql .txt .json 等文件</div>
+                <div class="filename" id="name-schema"></div>
+                <input type="file" id="file-schema" accept=".sql,.txt,.json,.csv" onchange="handleFile(this, 'schema')">
+            </div>
+        </div>
+        <div class="form-row">
+            <input type="text" id="target-name" placeholder="审计目标名称（如：某电商平台）">
+            <input type="text" id="target-desc" placeholder="目标描述（可选）">
+            <input type="date" id="doc-date" placeholder="文档日期">
+        </div>
+    </div>
+
+    <!-- Start Button -->
+    <div class="btn-center">
+        <button class="btn btn-primary" id="btn-start" onclick="startAudit()">
+            ▶ 开始 GDPR 合规审计
+        </button>
+    </div>
+
+    <!-- Progress -->
+    <div class="card" id="progress-card" style="display:none">
+        <div style="display:flex;align-items:center;gap:10px">
+            <div class="spinner"></div>
+            <span id="progress-msg">正在初始化...</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+        <div class="progress-text" id="progress-pct">0%</div>
+    </div>
+
+    <!-- Results -->
+    <div id="results">
+        <!-- Header -->
+        <div class="card">
+            <div class="result-header">
+                <span style="font-weight:700" id="res-target"></span>
+                <span class="risk-badge" id="res-risk"></span>
+                <span style="color:var(--muted);font-size:0.85rem" id="res-audit-id"></span>
+            </div>
+            <div class="stats" id="res-stats"></div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('findings')">发现清单</button>
+            <button class="tab-btn" onclick="switchTab('conflicts')">冲突消解</button>
+            <button class="tab-btn" onclick="switchTab('dpia')">DPIA 评估</button>
+            <button class="tab-btn" onclick="switchTab('report')">完整报告</button>
+        </div>
+
+        <div class="card">
+            <div class="tab-panel active" id="tab-findings"></div>
+            <div class="tab-panel" id="tab-conflicts"></div>
+            <div class="tab-panel" id="tab-dpia"></div>
+            <div class="tab-panel" id="tab-report"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// File handling
+// ═══════════════════════════════════════════════════════
+const files = { privacy: null, schema: null };
+
+function handleFile(input, type) {
+    if (input.files.length > 0) {
+        files[type] = input.files[0];
+        document.getElementById('name-' + type).textContent = '✓ ' + input.files[0].name;
+        document.getElementById('zone-' + type).classList.add('has-file');
+    }
+}
+
+// Drag & drop
+['privacy','schema'].forEach(type => {
+    const zone = document.getElementById('zone-' + type);
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+    zone.addEventListener('drop', e => {
+        e.preventDefault();
+        zone.classList.remove('dragover');
+        const dt = e.dataTransfer;
+        if (dt.files.length > 0) {
+            const input = document.getElementById('file-' + type);
+            input.files = dt.files;
+            handleFile(input, type);
+        }
+    });
+});
+
+// ═══════════════════════════════════════════════════════
+// Audit flow
+// ═══════════════════════════════════════════════════════
+let pollTimer = null;
+
+async function startAudit() {
+    if (!files.privacy && !files.schema) {
+        showToast('请至少上传一个文件', 'error');
+        return;
+    }
+
+    // Hide previous results
+    document.getElementById('results').style.display = 'none';
+    document.getElementById('progress-card').style.display = 'block';
+    document.getElementById('btn-start').disabled = true;
+    document.getElementById('btn-start').textContent = '⏳ 审计中...';
+
+    // Build form data
+    const form = new FormData();
+    if (files.privacy) form.append('privacy_doc', files.privacy);
+    if (files.schema) form.append('data_schema', files.schema);
+    form.append('target_name', document.getElementById('target-name').value);
+    form.append('target_description', document.getElementById('target-desc').value);
+    form.append('document_date', document.getElementById('doc-date').value);
+
+    try {
+        const resp = await fetch('/api/audit', { method: 'POST', body: form });
+        const data = await resp.json();
+        if (data.status === 'error') {
+            showToast(data.message, 'error');
+            resetButton();
+            return;
+        }
+        // Start polling
+        pollTimer = setInterval(pollStatus, 1500);
+    } catch (e) {
+        showToast('无法连接服务器: ' + e.message, 'error');
+        resetButton();
+    }
+}
+
+async function pollStatus() {
+    try {
+        const resp = await fetch('/api/status');
+        const status = await resp.json();
+        document.getElementById('progress-msg').textContent = status.message;
+        document.getElementById('progress-fill').style.width = status.progress + '%';
+        document.getElementById('progress-pct').textContent = status.progress + '%';
+
+        if (!status.running) {
+            clearInterval(pollTimer);
+            if (status.has_error) {
+                showToast('审计失败', 'error');
+                resetButton();
+                return;
+            }
+            if (status.has_result) {
+                await loadResults();
+                showToast('审计完成', 'success');
+                resetButton();
+            }
+        }
+    } catch (e) {
+        clearInterval(pollTimer);
+        resetButton();
+    }
+}
+
+async function loadResults() {
+    try {
+        const resp = await fetch('/api/result');
+        const data = await resp.json();
+        if (data.status !== 'completed') return;
+        renderResults(data.result);
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+function resetButton() {
+    document.getElementById('btn-start').disabled = false;
+    document.getElementById('btn-start').textContent = '▶ 开始 GDPR 合规审计';
+    document.getElementById('progress-card').style.display = 'none';
+}
+
+// ═══════════════════════════════════════════════════════
+// Render results
+// ═══════════════════════════════════════════════════════
+function renderResults(r) {
+    document.getElementById('results').style.display = 'block';
+    document.getElementById('progress-card').style.display = 'none';
+
+    // Header
+    document.getElementById('res-target').textContent = r.target_name || '未命名';
+    document.getElementById('res-audit-id').textContent = r.audit_id || '';
+    const badge = document.getElementById('res-risk');
+    badge.textContent = r.risk_tier || '?';
+    badge.className = 'risk-badge risk-' + (r.risk_tier || 'LOW');
+
+    // Stats
+    document.getElementById('res-stats').innerHTML = [
+        { v: r.total_findings, l: '总发现' },
+        { v: r.critical_findings_count, l: '严重发现' },
+        { v: r.total_conflicts, l: '冲突' },
+        { v: r.dpia_dimensions_passed || '?/7', l: 'DPIA 完成度' },
+        { v: r.has_special_category_data ? '是' : '否', l: '特殊数据' },
+        { v: crossBorderLabel(r.cross_border_risk_level), l: '跨境风险' },
+    ].map(s => `<div class="stat"><div class="value">${s.v}</div><div class="label">${s.l}</div></div>`).join('');
+
+    // Citation verification banner (anti-hallucination)
+    const cv = r.citation_verification;
+    if (cv && cv.has_issues) {
+        const banner = document.createElement('div');
+        banner.style.cssText = 'background:rgba(245,158,11,0.12);border:1px solid var(--medium);border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:0.85rem';
+        banner.innerHTML = `
+            <div style="display:flex;align-items:center;gap:8px;color:var(--medium);font-weight:600">
+                <span>⚠ 引用验证: ${cv.failed}/${cv.total} 条发现存在条款引用问题</span>
+            </div>
+            <div style="margin-top:6px;color:var(--muted);font-size:0.82rem">
+                ${cv.issues.map(i => `<div>• ${esc(i)}</div>`).join('')}
+                <div style="margin-top:4px;font-style:italic">LLM 引用的条款号已自动验证，不存在的引用已移除。</div>
+            </div>
+        `;
+        document.getElementById('res-stats').after(banner);
+    }
+
+    // Findings tab (default active)
+    renderFindings(r.findings || [], r.findings_by_source);
+    renderConflicts(r.conflicts || []);
+    renderDPIA(r);
+    renderReport(r.report_text || '');
+
+    // Scroll to results
+    document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
+}
+
+function sortBySeverity(a, b) {
+    const order = { HIGH: 0, MEDIUM: 1, LOW: 2 };
+    return (order[a.severity] ?? 9) - (order[b.severity] ?? 9);
+}
+
+function renderFindings(findings, bySource) {
+    if (!findings.length) {
+        document.getElementById('tab-findings').innerHTML = '<div class="empty-state">无发现</div>';
+        return;
+    }
+
+    // 如果没有分来源数据，降级为旧版平铺展示
+    if (!bySource || !Object.keys(bySource).length) {
+        document.getElementById('tab-findings').innerHTML = findings.sort(sortBySeverity).map(f => findingCard(f)).join('');
+        return;
+    }
+
+    const sourceLabels = {
+        privacy_doc_auditor: { icon: '📄', label: '隐私文档审计' },
+        data_schema_auditor: { icon: '🗄️', label: '数据 Schema 审计' },
+    };
+
+    let html = '';
+    for (const [src, group] of Object.entries(bySource)) {
+        const info = sourceLabels[src] || { icon: '📋', label: src };
+        const sorted = group.findings.sort(sortBySeverity);
+        const fileList = group.files.length ? group.files.join('、') : '-';
+
+        html += `<div style="margin-bottom:20px">`;
+        html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">`;
+        html += `<span style="font-size:1.1rem">${info.icon}</span>`;
+        html += `<span style="font-weight:700;font-size:1rem">${info.label}</span>`;
+        html += `<span style="color:var(--muted);font-size:0.82rem">(${sorted.length} 条)</span>`;
+        html += `</div>`;
+        html += `<div style="font-size:0.82rem;color:var(--muted);margin: -6px 0 10px 22px;padding:6px 10px;background:var(--bg);border-radius:6px">📁 ${esc(fileList)}</div>`;
+        html += sorted.map(f => findingCard(f)).join('');
+        html += `</div>`;
+    }
+    document.getElementById('tab-findings').innerHTML = html;
+}
+
+function findingCard(f) {
+    const vBadge = f.verification_passed || !f.verification_issues || !f.verification_issues.length
+        ? '' : `<span style="font-size:0.7rem;color:var(--medium);margin-left:8px">⚠ 引用待确认</span>`;
+    const vDetail = f.verification_issues && f.verification_issues.length
+        ? `<div style="font-size:0.78rem;color:var(--medium);margin-top:4px">⚠ ${esc(f.verification_issues.join('; '))}</div>`
+        : '';
+    return `
+        <div class="finding ${f.severity}">
+            <div class="f-header">
+                <span class="f-title">${esc(f.title)}${vBadge}</span>
+                <span class="f-severity ${f.severity}">${f.severity}</span>
+            </div>
+            <div class="f-desc">${esc(f.description)}</div>
+            ${vDetail}
+            ${f.related_articles && f.related_articles.length ? `<div class="f-articles">📜 ${f.related_articles.join(', ')}</div>` : ''}
+        </div>
+    `;
+}
+
+function renderConflicts(conflicts) {
+    if (!conflicts.length) {
+        document.getElementById('tab-conflicts').innerHTML = '<div class="empty-state">未检测到冲突</div>';
+        return;
+    }
+    document.getElementById('tab-conflicts').innerHTML = conflicts.map(c => {
+        const arb = c.arbitration || {};
+        return `
+        <div class="finding ${c.resolved ? 'LOW' : 'HIGH'}">
+            <div class="f-header">
+                <span class="f-title">${esc(c.conflict_type)}</span>
+                <span class="f-severity ${c.resolved ? 'LOW' : 'HIGH'}">${c.resolved ? '已解决' : '未解决'}</span>
+            </div>
+            ${arb.winner ? `<div class="f-desc">裁决方: <b>${arb.winner}</b> | 方法: ${arb.method}</div>` : ''}
+            ${arb.explanation ? `<div class="f-desc">${esc(arb.explanation)}</div>` : ''}
+        </div>`;
+    }).join('');
+}
+
+function renderDPIA(r) {
+    const details = r.dpia_details || {};
+    const dims = Object.entries(details);
+    if (!dims.length) {
+        document.getElementById('tab-dpia').innerHTML = '<div class="empty-state">DPIA 未生成</div>';
+        return;
+    }
+    let html = dims.map(([key, d]) => {
+        const pct = (d.score*100).toFixed(0);
+        const color = d.score >= 0.85 ? 'var(--low)' : d.score >= 0.6 ? 'var(--medium)' : 'var(--high)';
+        return `<div style="margin-bottom:8px">
+            <div style="display:flex;justify-content:space-between;font-size:0.85rem">
+                <span>${esc(d.name)} (权重 ${(d.weight*100).toFixed(0)}%)</span>
+                <span style="color:${color};font-weight:600">${pct}%</span>
+            </div>
+            <div style="height:4px;background:var(--border);border-radius:2px;margin-top:2px">
+                <div style="height:100%;width:${pct}%;background:${color};border-radius:2px"></div>
+            </div>
+        </div>`;
+    }).join('');
+    let dpiaHeader = '';
+    const passed = r.dpia_dimensions_passed || '?/7';
+    dpiaHeader = `<div style="margin-bottom:12px;font-weight:600">完成度: ${passed} (EDPB WP248 量表) — 分数≥0.6视为及格</div>`;
+    html = dpiaHeader + html;
+    document.getElementById('tab-dpia').innerHTML = html;
+}
+
+function renderReport(text) {
+    document.getElementById('tab-report').innerHTML = text
+        ? `<div class="report-text">${esc(text)}</div>`
+        : '<div class="empty-state">报告未生成</div>';
+}
+
+// ═══════════════════════════════════════════════════════
+// Tabs
+// ═══════════════════════════════════════════════════════
+function switchTab(name) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelector(`[onclick="switchTab('${name}')"]`).classList.add('active');
+    document.getElementById('tab-' + name).classList.add('active');
+}
+
+// ═══════════════════════════════════════════════════════
+// Helpers
+// ═══════════════════════════════════════════════════════
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function crossBorderLabel(level) {
+    const map = { HIGH: '高', MEDIUM: '中', LOW: '低' };
+    return map[level] || level || '?';
+}
+
+function showToast(msg, type) {
+    const t = document.createElement('div');
+    t.className = 'toast ' + type;
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3500);
+}
+</script>
+</body>
+</html>
