@@ -2,8 +2,8 @@
 
 [![LangGraph](https://img.shields.io/badge/LangGraph-1.x-4A90D9)](#)
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python)](#)
-[![ChromaDB](https://img.shields.io/badge/ChromaDB-0.5.x-FF6B35)](#)
-*AI-powered multi-agent system for automated GDPR privacy compliance auditing.*
+[![ChromaDB](https://img.shields.io/badge/ChromaDB-0.5.x-FF6B35)](#)  
+*AI-powered multi-agent system for automated GDPR privacy compliance auditing.*  
 *基于 LangGraph 的多 Agent 工作流，自动化 GDPR 隐私合规审计。输入隐私声明文档和/或数据库表结构（SQL DDL），系统自动完成：双 Agent 并行审计 → 冲突消解 → 风险评估 → DPIA 生成 → 人审复核 → 完整合规报告。
 
 ---
