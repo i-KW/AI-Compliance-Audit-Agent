@@ -1,22 +1,16 @@
 # AI Compliance Audit Agent
 
-> **AI-powered multi-agent system for automated GDPR privacy compliance auditing.**
-> **基于 LangGraph 的多 Agent 工作流，自动化 GDPR 隐私合规审计。**
-
 [![LangGraph](https://img.shields.io/badge/LangGraph-1.x-4A90D9)](#)
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python)](#)
 [![ChromaDB](https://img.shields.io/badge/ChromaDB-0.5.x-FF6B35)](#)
-
-输入隐私声明文档和/或数据库表结构（SQL DDL），系统自动完成：双 Agent 并行审计 → 冲突消解 → 风险评估 → DPIA 生成 → 人审复核 → 完整合规报告。
+> **AI-powered multi-agent system for automated GDPR privacy compliance auditing.**
+*基于 LangGraph 的多 Agent 工作流，自动化 GDPR 隐私合规审计。输入隐私声明文档和/或数据库表结构（SQL DDL），系统自动完成：双 Agent 并行审计 → 冲突消解 → 风险评估 → DPIA 生成 → 人审复核 → 完整合规报告。
 
 ---
 
 ## 项目简介
-
-**中文：**
 > AI Compliance Audit Agent 是一个基于 LangGraph 的多 Agent 工作流系统，专为 GDPR 隐私合规审计设计。系统接收隐私政策和数据库 Schema 作为输入，通过 2 个 Specialist Agent 并行分析、规则引擎 + LLM 双层冲突消解、EDPB WP248 结构化 DPIA 评分，最终生成带法规版本追踪的审计报告。内置 HITL（Human-in-the-Loop）人审机制，支持 DPO 审批结论。
 
-**English:**
 > AI Compliance Audit Agent is a LangGraph-powered multi-agent workflow for automated GDPR privacy compliance auditing. It takes privacy policies and database schemas as input, runs parallel analysis via two specialist agents, resolves conflicts through a hybrid rule-engine + LLM architecture, generates EDPB-compliant DPIA reports, and supports human-in-the-loop review. Every finding includes citation verification against the real GDPR article registry.
 
 ---
@@ -36,6 +30,19 @@
 
 ---
 
+## 设计优势
+
+1. **冲突消解不是 LLM 自由发挥** — 先过 `GDPRPriorityEngine`（硬编码罚款梯度），LLM 只处理同级冲突和写解释。合规审计让 LLM 直接裁决风险太大了。
+
+2. **DPIA 质量不是 LLM "觉得好不好"** — EDPB WP248 官方量表：7 维度 × 权重 × 硬性标准。风险识别维度 < 0.6 直接一票否决总分归零。Reflection Agent 不能用自己的审美评分。
+
+3. **RAG 不是"一个向量库包打天下"** — 5 个 Collection 按知识类型分，搜索加权融合。法规正文权重最高（1.0），执法案例只做参考（0.7）。新增文档类型只需加 Collection + 权重，Agent 逻辑零改动。
+
+4. **法规版本不是审计工具说了算** — 审计报告只展示"审计日期 / RAG 构建日期 / 法规版本"，不做"过时"判断。合规时效性由 DPO 根据具体场景决定。
+
+5. **LLM 调用是可选的** — 架构支持 mock agent、真实 LLM、或任意组合。没有 API key 也能跑通整个图（27 个测试全部支持 mock 模式）。
+
+---
 ## 技术栈
 
 | Layer | Technology | Purpose |
@@ -51,21 +58,6 @@
 | Testing | **pytest** (27 tests) | E2E scenarios: doc-only, doc+schema |
 
 ---
-
-## 设计优势
-
-1. **冲突消解不是 LLM 自由发挥** — 先过 `GDPRPriorityEngine`（硬编码罚款梯度），LLM 只处理同级冲突和写解释。合规审计让 LLM 直接裁决风险太大了。
-
-2. **DPIA 质量不是 LLM "觉得好不好"** — EDPB WP248 官方量表：7 维度 × 权重 × 硬性标准。风险识别维度 < 0.6 直接一票否决总分归零。Reflection Agent 不能用自己的审美评分。
-
-3. **RAG 不是"一个向量库包打天下"** — 5 个 Collection 按知识类型分，搜索加权融合。法规正文权重最高（1.0），执法案例只做参考（0.7）。新增文档类型只需加 Collection + 权重，Agent 逻辑零改动。
-
-4. **法规版本不是审计工具说了算** — 审计报告只展示"审计日期 / RAG 构建日期 / 法规版本"，不做"过时"判断。合规时效性由 DPO 根据具体场景决定。
-
-5. **LLM 调用是可选的** — 架构支持 mock agent、真实 LLM、或任意组合。没有 API key 也能跑通整个图（27 个测试全部支持 mock 模式）。
-
----
-
 ## 目录
 
 - [项目架构总览](#项目架构总览)
