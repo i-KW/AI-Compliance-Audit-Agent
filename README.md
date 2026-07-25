@@ -54,7 +54,7 @@ AI Compliance Audit Agent is a LangGraph-powered multi-agent workflow for automa
 | PDF Parsing | **PyMuPDF** (fitz) | GDPR/EDPB PDF text extraction |
 | SQL Parsing | **sqlparse** + regex | PII column scan and lineage tracking |
 | Web UI | **Flask** + vanilla HTML/CSS/JS | Zero external frontend dependencies |
-| Testing | **pytest** (27 tests) | E2E scenarios: doc-only, doc+schema |
+| Testing | **pytest** (27 tests) + **RAGAS** (RAG eval baseline) | E2E scenarios + RAG retrieval quality metrics |
 
 ---
 ## 目录
@@ -64,6 +64,7 @@ AI Compliance Audit Agent is a LangGraph-powered multi-agent workflow for automa
 - [RAG 知识库入库流程](#rag-知识库入库流程)
 - [Chunk 分块策略](#chunk-分块策略)
 - [RAG 搜索流程](#rag-搜索流程)
+- [📊 RAG 检索质量基线](#-rag-检索质量基线)
 - [法规版本展示设计](#法规版本展示设计诚实展示不做判断)
 - [快速开始](#快速开始)
 - [Phase A: PDF 知识库入库](#phase-a-pdf-知识库入库)
@@ -364,6 +365,44 @@ search_gdpr_knowledge(
 
 ---
 
+## 📊 RAG 检索质量基线
+
+使用 [RAGAS](https://github.com/explodinggradients/ragas) 对当前 RAG 管道（ChromaDB 949 chunks + text-embedding-v3 + DeepSeek Chat）的 4 项核心指标进行基线评测。
+
+### 基线结果（2026-07-08）
+
+| 指标 | 得分 | 解读 |
+|------|:----:|------|
+| **context_precision** | 0.64 | 检索到的 chunk 中约 64% 与查询相关，中等水平，可通过增加 Cross-Encoder Reranker 提升 |
+| **context_recall** | 0.73 | 全部相关文档中约 73% 被检索到，良好水平，可通过扩展知识库覆盖提升 |
+| **faithfulness** | 0.96 | ✅ LLM 回答高度忠实于检索上下文，幻觉率低 |
+| **answer_relevancy** | 0.94 | ✅ LLM 生成的回答与问题高度相关 |
+
+### 检索质量辅助指标
+
+| 指标 | 值 |
+|------|:--:|
+| 空检索率 | 0%（所有 query 均有返回） |
+| 条款命中率 | 90%（9/10 期望 GDPR 条款被正确检索） |
+| 平均返回 chunk | 5.0 / query |
+
+### 评估设置
+
+- **测试集**: 8 个 GDPR 合规查询（consent, DPIA, 跨境传输, Art.5 原则, 安全措施, 特殊数据, 处理记录, 隐私设计）
+- **LLM**: DeepSeek Chat（用于 faithfulness 和 answer_relevancy 评估）
+- **嵌入**: text-embedding-v3（1024维）
+- **检索**: 每次 Top-5 chunks，跨 5 个 Collection 加权融合
+
+### 重新运行
+
+```bash
+cd GDPR_Privacy_Auditor_Agent
+python tests/test_ragas_baseline.py
+# 结果输出至 outputs/ragas_baseline_report.txt 和 outputs/ragas_baseline_report.json
+```
+
+---
+
 ## 法规版本展示设计（诚实展示，不做判断）
 
 ### 设计理念
@@ -507,7 +546,8 @@ GDPR_Privacy_Auditor_Agent/
 ├── tests/
 │   ├── conftest.py
 │   ├── test_scenario_a.py     ← 仅文档输入 E2E（5 tests）
-│   └── test_scenario_b.py     ← 文档+SQL 完整链路（22 tests）
+│   ├── test_scenario_b.py     ← 文档+SQL 完整链路（22 tests）
+│   └── test_ragas_baseline.py ← RAG 检索质量基线评测
 │
 ├── rag_docs/                  ← PDF 源文件（8 份）
 ├── chroma_db/                 ← ChromaDB 持久化存储目录（.gitignore）
@@ -538,6 +578,7 @@ GDPR_Privacy_Auditor_Agent/
 - Batch Embedding — 减少 API 调用次数
 - 幂等性设计 — 重复运行不产生重复数据
 - 搜索失败回退 — 嵌入不可用时降级到关键词匹配
+- RAGAS 基线评测 — context_precision / recall / faithfulness / answer_relevancy 4 指标
 
 ### 法规版本展示
 - 诚实展示，不做判断 — 审计报告列出使用的法规版本，由 DPO 自行判断时效性

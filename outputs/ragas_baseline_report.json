@@ -1,0 +1,24 @@
+{
+  "timestamp": "2026-07-08 20:43:47",
+  "ragas_version": "0.3.9",
+  "embedding_model": "text-embedding-v3",
+  "llm_model": "deepseek-chat",
+  "chromadb_stats": {
+    "gdpr_legal_text": 130,
+    "edpb_guidelines": 819,
+    "enforcement_cases": 0,
+    "pii_patterns": 0,
+    "retention_guidelines": 0
+  },
+  "auxiliary": {
+    "empty_rate": 0.0,
+    "article_hit_rate": 0.9,
+    "avg_chunks": 5.0
+  },
+  "ragas_scores": {
+    "context_precision": 0.6388888888586112,
+    "context_recall": 0.7333333333333334,
+    "faithfulness": 0.9618055555555556,
+    "answer_relevancy": 0.9357573965469573
+  }
+}

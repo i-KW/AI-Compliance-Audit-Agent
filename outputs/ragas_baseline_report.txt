@@ -1,0 +1,77 @@
+============================================================
+  GDPR Privacy Auditor — RAGAS 基线评估报告
+  生成时间: 2026-07-08 20:43:47
+  RAGAS 版本: 0.3.9
+============================================================
+
+--- ChromaDB 知识库统计 ---
+  gdpr_legal_text: 130 chunks
+  edpb_guidelines: 819 chunks
+  enforcement_cases: 0 chunks
+  pii_patterns: 0 chunks
+  retention_guidelines: 0 chunks
+
+--- 检索质量辅助指标 ---
+  空检索率:      0%
+  条款命中率:    90%
+  平均 chunk 数: 5.0
+
+--- RAGAS 指标 ---
+  context_precision: 0.6389
+  context_recall: 0.7333
+  faithfulness: 0.9618
+  answer_relevancy: 0.9358
+
+--- 测试查询明细 ---
+
+[1] Q: What are the requirements for obtaining valid consent under GDPR?
+    A: Based solely on the provided context, the requirements for obtaining valid consent under GDPR include:
+
+- Consent requires a statement from the data subject or a clear affirmative act, meaning it must...
+    GT: Consent must be freely given, specific, informed and unambiguous. Controllers must demonstrate that consent was obtained. Consent requests must be cle...
+    Contexts: 5 chunks
+
+[2] Q: When is a Data Protection Impact Assessment (DPIA) required?
+    A: Based solely on the provided context, a Data Protection Impact Assessment (DPIA) is required when a processing operation "is likely to result in a high risk to the rights and freedoms of natural perso...
+    GT: A DPIA is required where processing is likely to result in a high risk to the rights and freedoms of natural persons. The DPIA must contain a systemat...
+    Contexts: 5 chunks
+
+[3] Q: What are the rules for international data transfers under GDPR?
+    A: Based solely on the provided context, the rules for international data transfers under GDPR are as follows:
+
+Any transfer of personal data to third countries or international organisations must meet t...
+    GT: Transfers to third countries are permitted only if the controller complies with Chapter V conditions. Following Schrems II (C-311/18), controllers usi...
+    Contexts: 5 chunks
+
+[4] Q: What are the data protection principles under GDPR Article 5?
+    A: Based solely on the provided context, the data protection principles under GDPR Article 5 are:
+
+(a) lawfulness, fairness and transparency;
+(b) purpose limitation;
+(c) data minimisation;
+(d) accuracy;
+...
+    GT: Personal data shall be: (1) processed lawfully, fairly and transparently; (2) collected for specified, explicit and legitimate purposes; (3) adequate,...
+    Contexts: 5 chunks
+
+[5] Q: What security measures are required for processing personal data under Article 32?
+    A: Based solely on the provided context, Article 32 requires the controller and the processor to implement appropriate technical and organisational measures to ensure a level of security appropriate to t...
+    GT: Controllers and processors must implement appropriate technical and organisational measures including: pseudonymisation and encryption; ability to ens...
+    Contexts: 5 chunks
+
+[6] Q: What is considered special category data under GDPR?
+    A: Based solely on the provided context, special categories of personal data under GDPR are defined in Article 9. This includes personal data revealing racial or ethnic origin, political opinions, religi...
+    GT: Special categories of personal data include data revealing racial or ethnic origin, political opinions, religious or philosophical beliefs, trade unio...
+    Contexts: 5 chunks
+
+[7] Q: What records of processing activities must a controller maintain?
+    A: Based solely on the provided context, a controller must maintain a record of processing activities under its responsibility containing all of the following information:
+
+(a) the name and contact detai...
+    GT: Each controller must maintain records of processing activities including: name and contact details of the controller; purposes of processing; categori...
+    Contexts: 5 chunks
+
+[8] Q: What is data protection by design and by default?
+    A: Based solely on the provided context, data protection by design and by default are complementary concepts which mutually reinforce each other. Data protection by design is the requirement for controll...
+    GT: Controllers must implement measures to integrate data protection safeguards into processing activities at the earliest design stages. By default, only...
+    Contexts: 5 chunks
