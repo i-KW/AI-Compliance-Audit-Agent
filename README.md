@@ -76,34 +76,88 @@ AI Compliance Audit Agent is a LangGraph-powered multi-agent workflow for automa
 
 ### LangGraph 主图流程
 
-```
-START → init_node → evidence_supervisor
-                        ├─ Send(privacy_doc_auditor) ─┐
-                        └─ Send(data_schema_auditor)  ─┤  Fan-Out (并行)
-                                                       │
-                 ┌─────────────────────────────────────┘
-                 ▼ (Fan-In via operator.add)
-          conflict_subgraph (子图: 冲突消解)
-                 │
-                 ▼
-          synthesis_agent (综合分析)
-                 │
-                 ▼
-           risk_rater (风险评估)
-            ├─ MEDIUM/LOW → dpia_generator
-            └─ HIGH → human_review (HITL 人审中断点)
-                          ├─ approve → dpia_generator
-                          ├─ edit → synthesis_agent (循环回边 #3)
-                          └─ reject → END
-                 │
-                 ▼
-          dpia_generator (DPIA 生成)
-                 │
-                 ▼
-        reflection_agent (DPIA 质量评估: EDPB WP248)
-            ├─ pass → final_report → END
-            ├─ retry → dpia_generator (循环回边 #4)
-            └─ escalate → human_review
+> 下图由编译后的 `get_graph().draw_mermaid()` 自动生成，并加中文标注。橙色虚线为 4 条循环回边（DCG，非 DAG）。
+
+```mermaid
+---
+config:
+  flowchart:
+    curve: linear
+    nodeSpacing: 50
+    rankSpacing: 60
+---
+graph TD
+    __start__([输入<br/>隐私文档 + SQL DDL])
+
+    %% ═══════ 阶段 1: 初始化 + Fan-Out ═══════
+    init_node["init_node<br/><small>状态初始化 · 输入解析</small>"]
+    evidence_supervisor["evidence_supervisor<br/><small>Fan-Out 调度 (Send)</small>"]
+
+    subgraph AGENTS [双 Agent 并行审计]
+        privacy_doc_auditor["📄 Privacy Doc Auditor<br/><small>隐私文档 ReAct Agent</small>"]
+        data_schema_auditor["🗄️ Data Schema Auditor<br/><small>SQL DDL ReAct Agent</small>"]
+    end
+
+    %% ═══════ 阶段 2: 冲突消解 ═══════
+    conflict_resolution["⚖️ conflict_resolution<br/><small>双层冲突消解子图<br/>规则引擎 + LLM</small>"]
+
+    %% ═══════ 阶段 3: 综合分析 + 风险 ═══════
+    synthesis_agent["🧩 synthesis_agent<br/><small>综合分析</small>"]
+    risk_rater{"risk_rater<br/><small>风险评估</small>"}
+
+    %% ═══════ 阶段 4: HITL + DPIA ═══════
+    human_review["👁️ human_review<br/><small>HITL 人审 (interrupt)</small>"]
+    dpia_generator["📋 dpia_generator<br/><small>DPIA 生成</small>"]
+    reflection_agent{"reflection_agent<br/><small>WP248 质量评估</small>"}
+
+    final_report["📄 final_report<br/><small>审计报告 + 法规版本标注</small>"]
+    __end__([输出审计报告])
+
+    %% ─────── 主流程边 ───────
+    __start__ --> init_node
+    init_node -- collect --> evidence_supervisor
+    init_node -- end --> __end__
+
+    %% Fan-Out (Send)
+    evidence_supervisor -.-> privacy_doc_auditor
+    evidence_supervisor -.-> data_schema_auditor
+
+    privacy_doc_auditor --> conflict_resolution
+    data_schema_auditor --> conflict_resolution
+    conflict_resolution --> synthesis_agent
+    synthesis_agent --> risk_rater
+
+    %% risk_rater 路由
+    risk_rater -- continue --> dpia_generator
+    risk_rater --> human_review
+    risk_rater -- end --> __end__
+
+    %% HITL 路由 (循环回边 #3)
+    human_review -- continue --> dpia_generator
+    human_review -. "re_evaluate 🔁 回边#3" .-> synthesis_agent
+    human_review -- end --> __end__
+
+    %% DPIA 质量评估 (循环回边 #4)
+    dpia_generator --> reflection_agent
+    reflection_agent -- pass --> final_report
+    reflection_agent -. "retry 🔁 回边#4" .-> dpia_generator
+    reflection_agent -- escalate --> human_review
+
+    final_report --> __end__
+
+    %% ─────── 样式：高亮 4 条循环回边 ───────
+    classDef first fill:#fff,stroke:none
+    classDef last fill:#bfb6fc,stroke:#6b5fd3
+    classDef agent fill:#e8f4fd,stroke:#4a90d9
+    classDef loop fill:#fff4e6,stroke:#ff8c00
+    classDef hitl fill:#fde8e8,stroke:#e05d5d
+    classDef engine fill:#eef7ee,stroke:#4caf50
+
+    class __start__ first
+    class __end__ last
+    class privacy_doc_auditor,data_schema_auditor agent
+    class human_review hitl
+    class conflict_resolution,dpia_generator engine
 ```
 
 ### 三层层级

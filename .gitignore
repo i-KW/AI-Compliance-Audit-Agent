@@ -1,6 +1,12 @@
 # API Keys — NEVER commit
 .env
 
+# Workbuddy local workspace
+.workbuddy/
+
+# Local generated outputs / docs
+outputs/
+
 # User uploaded files
 uploads/
 
