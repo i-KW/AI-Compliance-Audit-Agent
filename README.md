@@ -53,7 +53,7 @@ A LangGraph-powered multi-agent workflow for automated GDPR privacy compliance a
 - [📊 RAG 检索质量基线](#-rag-检索质量基线)
 - [法规版本展示设计](#法规版本展示设计诚实展示不做判断)
 - [快速开始](#快速开始)
-- [Phase A: PDF 知识库入库](#phase-a-pdf-知识库入库)
+- [PDF 知识库入库](#phase-a-pdf-知识库入库)
 - [项目文件结构](#项目文件结构)
 
 ---
@@ -520,7 +520,7 @@ python -m pytest tests/ -v
 
 ---
 
-## Phase A: PDF 知识库入库
+## 知识库PDF文件入库
 
 将 GDPR 法规和 EDPB 指南 PDF 文件放入 `rag_docs/` 目录，然后：
 
