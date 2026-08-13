@@ -8,7 +8,7 @@
 
 ## 项目简介
 基于 LangGraph 的多Agent的GDPR 隐私合规审计智能体。输入隐私声明和数据库Schema/DDL脚本，系统自动完成：双 Agent 并行审计 → "声明 vs 实际"交叉核对 → 风险评估 → DPIA 生成 → 人审复核 → 完整合规报告。通过 2 个 Specialist Agent（一个审计"声明的"、一个读"实际的数据库"），"声明 vs 实际"交叉核对识别合规缺口，确定性规则引擎按 GDPR 罚款梯度定级、EDPB WP248 结构化 DPIA 评分，最终生成带法规版本追踪的审计报告。内置 HITL（Human-in-the-Loop）人审机制，支持 DPO 审批结论。
-AI Compliance Audit Agent is a LangGraph-powered multi-agent workflow for automated GDPR privacy compliance auditing. It takes privacy policies and database schemas as input, runs two specialist agents in parallel — one extracts what the policy *declares*, the other what the system *actually does* — and cross-checks the two sides to detect policy–practice gaps (out-of-scope collection, undeclared cross-border transfer, retention mismatch, over-authorised use). Severity is graded by a deterministic rule engine, it generates EDPB-compliant DPIA reports, and supports human-in-the-loop review. Every finding includes citation verification against the real GDPR article registry.
+A LangGraph-powered multi-agent workflow for automated GDPR privacy compliance auditing. It takes privacy policies and database schemas as input, runs two specialist agents in parallel — one extracts what the policy *declares*, the other what the system *actually does* — and cross-checks the two sides to detect policy–practice gaps, it generates EDPB-compliant DPIA reports.
 
 ---
 
@@ -17,9 +17,9 @@ AI Compliance Audit Agent is a LangGraph-powered multi-agent workflow for automa
 | 特点 | 说明 |
 |------|------|
 | 🧠 **Multi-Agent 并行审计** | Privacy Doc Auditor + Data Schema Auditor 通过 LangGraph `Send()` API 并行执行，`operator.add` 安全合并结果 |
-| ⚖️ **"声明 vs 实际"交叉核对 + 规则引擎定级** | 双 Agent 各握审计等式一边，比对识别 policy-practice 缺口（超出声明采集 / 未申报跨境 / 超期保留 / 超授权使用）；`GDPRPriorityEngine`（GDPR 罚款梯度硬编码规则）按严重度定级，LLM 不碰裁决定性，仅同权重情境补判 + 生成解释 |
-| 📋 **EDPB WP248 结构化 DPIA 评分** | 7 维度 × 权重 × 硬性标准。风险识别维度有一票否决权（< 0.6 → 总分归零），防止 Reflection Agent 串通作弊 |
-| 🔍 **多 Collection 分层 RAG** | ChromaDB 5 个 Collection 按知识类型分库，搜索时加权融合。法规正文权重 1.0，执法案例 0.7 |
+| ⚖️ **"声明 vs 实际"交叉核对 + 规则引擎定级** | 双 Agent对比声明-实际识别差异（超出声明采集 / 未申报跨境 / 超期保留 / 超授权使用）；`GDPRPriorityEngine`（GDPR 罚款梯度硬编码规则）按严重度定级，LLM 不碰裁决定性，仅同权重情境补判 + 生成解释 |
+| 📋 **EDPB WP248 结构化 DPIA 评分** | 7 维度 × 权重 × 硬性标准。风险识别维度（< 0.6）有一票否决权，防止 Reflection Agent 串通作弊 |
+| 🔍 **多 Collection 分层 RAG** | ChromaDB 5 个 Collection 按知识类型分库，搜索时加权融合。法规正文权重1.0大于执法案例权重0.7 |
 | 🔄 **4 条循环回边（DCG，非 DAG）** | 缺口定级失败→重处理 / 证据补充 / DPO 编辑重评估 / DPIA 反思迭代 |
 | 👁️ **HITL 人审（interrupt）** | 基于 LangGraph `interrupt()` 机制，DPO 审批整份结论（Approve / Edit risk_tier / Reject → INCONCLUSIVE） |
 | 📅 **法规版本透明展示** | 审计报告 footer 展示三组日期：审计日期 / RAG 构建日期 / 法规版本日期。诚实展示，不做自动"过时"判断 |
@@ -38,6 +38,9 @@ AI Compliance Audit Agent is a LangGraph-powered multi-agent workflow for automa
 4. **法规版本不是审计工具说了算** — 审计报告附带"审计日期 / RAG 构建日期 / 法规版本"，不做"过时"判断。合规时效性由 DPO 根据具体场景决定。
 
 5. **LLM 调用是可选的** — 架构支持 mock agent、真实 LLM、或任意组合（27 个测试全部支持 mock 模式）。
+
+<img width="1557" height="988" alt="image" src="https://github.com/user-attachments/assets/c8747c7a-b8b4-4e5b-a2fa-65803b11c25b" />
+
 
 
 ## 目录
@@ -255,12 +258,6 @@ rag_docs/ 中的 8 份 PDF
 | `edpb_guidelines` | **819** | 7 份 EDPB 指南 PDF |
 | 其他 3 个 Collection | **0** | 待后续阶段补充 |
 | **总计** | **949** | — |
-
-### 幂等性设计
-
-- 首次运行 → 解析 PDF + 嵌入 + 存入 ChromaDB
-- 再次运行 → `collection.count() != 0` → 跳过，不产生重复数据
-- 强制重新入库：`python -m rag.ingest --force`
 
 ---
 
