@@ -1,15 +1,13 @@
 # AI Compliance Audit Agent
-
+*AI-powered multi-agent system for automated GDPR privacy compliance auditing.*  
 [![LangGraph](https://img.shields.io/badge/LangGraph-1.x-4A90D9)](#)
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python)](#)
 [![ChromaDB](https://img.shields.io/badge/ChromaDB-0.5.x-FF6B35)](#)  
-*AI-powered multi-agent system for automated GDPR privacy compliance auditing.*  
-*基于 LangGraph 的多 Agent 工作流，自动化 GDPR 隐私合规审计。输入隐私声明文档和/或数据库表结构（SQL DDL），系统自动完成：双 Agent 并行审计 → "声明 vs 实际"交叉核对 → 风险评估 → DPIA 生成 → 人审复核 → 完整合规报告。
 
 ---
 
 ## 项目简介
-AI Compliance Audit Agent 是一个基于 LangGraph 的多 Agent 工作流系统，专为 GDPR 隐私合规审计设计。系统接收隐私政策和数据库 Schema 作为输入，通过 2 个 Specialist Agent 各握审计等式一边（一个读"声明的"、一个读"实际的"），"声明 vs 实际"交叉核对识别合规缺口，确定性规则引擎按 GDPR 罚款梯度定级、EDPB WP248 结构化 DPIA 评分，最终生成带法规版本追踪的审计报告。内置 HITL（Human-in-the-Loop）人审机制，支持 DPO 审批结论。
+基于 LangGraph 的多Agent的GDPR 隐私合规审计智能体。输入隐私声明和数据库Schema/DDL脚本，系统自动完成：双 Agent 并行审计 → "声明 vs 实际"交叉核对 → 风险评估 → DPIA 生成 → 人审复核 → 完整合规报告。通过 2 个 Specialist Agent（一个审计"声明的"、一个读"实际的数据库"），"声明 vs 实际"交叉核对识别合规缺口，确定性规则引擎按 GDPR 罚款梯度定级、EDPB WP248 结构化 DPIA 评分，最终生成带法规版本追踪的审计报告。内置 HITL（Human-in-the-Loop）人审机制，支持 DPO 审批结论。
 AI Compliance Audit Agent is a LangGraph-powered multi-agent workflow for automated GDPR privacy compliance auditing. It takes privacy policies and database schemas as input, runs two specialist agents in parallel — one extracts what the policy *declares*, the other what the system *actually does* — and cross-checks the two sides to detect policy–practice gaps (out-of-scope collection, undeclared cross-border transfer, retention mismatch, over-authorised use). Severity is graded by a deterministic rule engine, it generates EDPB-compliant DPIA reports, and supports human-in-the-loop review. Every finding includes citation verification against the real GDPR article registry.
 
 ---
@@ -31,32 +29,17 @@ AI Compliance Audit Agent is a LangGraph-powered multi-agent workflow for automa
 
 ## 设计优势
 
-1. **缺口定级不是 LLM 自由发挥** — 先过 `GDPRPriorityEngine`（硬编码罚款梯度），LLM 不碰裁决定性，只做同权重情境补判和写解释。合规审计让 LLM 直接裁决风险太大了。
+1. **缺口定级不是 LLM 自由发挥** — 先过 `GDPRPriorityEngine`（硬编码罚款梯度），LLM 不碰裁决定性，只做同权重情境补判和写解释。可复现、可审计、低幻觉
 
-2. **DPIA 质量不是 LLM "觉得好不好"** — EDPB WP248 官方量表：7 维度 × 权重 × 硬性标准。风险识别维度 < 0.6 直接一票否决总分归零。Reflection Agent 不能用自己的审美评分。
+2. **DPIA 质量不是 LLM "觉得好不好"** — EDPB WP248 官方量表：7 维度 × 权重 × 硬性标准。风险识别维度 < 0.6 直接一票否决总分归零。Reflection Agent不能用自己的审美评分。
 
-3. **RAG 不是"一个向量库包打天下"** — 5 个 Collection 按知识类型分，搜索加权融合。法规正文权重最高（1.0），执法案例只做参考（0.7）。新增文档类型只需加 Collection + 权重，Agent 逻辑零改动。
+3. **RAG 不是"一个向量库包打天下"** — 5 个 Collection 按知识类型分，搜索加权融合。法规正文权重最高（1.0）大于执法案例只做参考（0.7）。新增文档类型只需加 Collection + 权重，Agent 逻辑零改动。
 
-4. **法规版本不是审计工具说了算** — 审计报告只展示"审计日期 / RAG 构建日期 / 法规版本"，不做"过时"判断。合规时效性由 DPO 根据具体场景决定。
+4. **法规版本不是审计工具说了算** — 审计报告附带"审计日期 / RAG 构建日期 / 法规版本"，不做"过时"判断。合规时效性由 DPO 根据具体场景决定。
 
-5. **LLM 调用是可选的** — 架构支持 mock agent、真实 LLM、或任意组合。没有 API key 也能跑通整个图（27 个测试全部支持 mock 模式）。
+5. **LLM 调用是可选的** — 架构支持 mock agent、真实 LLM、或任意组合（27 个测试全部支持 mock 模式）。
 
----
-## 技术栈
 
-| Layer | Technology | Purpose |
-|-------|-----------|---------|
-| Workflow Engine | **LangGraph 1.x** (StateGraph) | Multi-agent orchestration, cyclic edges, subgraph, interrupt |
-| State Management | Python TypedDict + `operator.add` | Type-safe state with Fan-In merge |
-| Vector Database | **ChromaDB 0.5.x** | 5 collections × weighted fusion hybrid search |
-| LLM | OpenAI-compatible API (Qwen / DeepSeek / Ollama) | Configurable, no vendor lock-in |
-| Embedding | OpenAI-compatible API (text-embedding-v3 / bge-m3) | Configurable, Chinese-friendly |
-| PDF Parsing | **PyMuPDF** (fitz) | GDPR/EDPB PDF text extraction |
-| SQL Parsing | **sqlparse** + regex | PII column scan and lineage tracking |
-| Web UI | **Flask** + vanilla HTML/CSS/JS | Zero external frontend dependencies |
-| Testing | **pytest** (27 tests) + **RAGAS** (RAG eval baseline) | E2E scenarios + RAG retrieval quality metrics |
-
----
 ## 目录
 
 - [项目架构总览](#项目架构总览)
@@ -76,7 +59,7 @@ AI Compliance Audit Agent is a LangGraph-powered multi-agent workflow for automa
 
 ### LangGraph 主图流程
 
-> 下图由编译后的 `get_graph().draw_mermaid()` 自动生成，并加中文标注。橙色虚线为 4 条循环回边（DCG，非 DAG）。
+> 下图由编译后的 `get_graph().draw_mermaid()` 自动生成。虚线为 4 条循环回边（DCG，非 DAG）， conflict_resolution子图内部的5个节点和2条循环未体现。
 
 ```mermaid
 ---
@@ -160,8 +143,6 @@ graph TD
     class conflict_resolution,dpia_generator engine
 ```
 
-> **一个重要的表述精确性**：代码里这个子图仍叫 `conflict_resolution`（这是真实节点名），但更准确的说法是——双 Agent 不是"两个 LLM 吵架"，它们各自握着审计等式的一边（一个提取"声明的"、一个提取"实际的"）；比较器做的是**政策-实践缺口检测**，规则引擎做的是**按 GDPR 罚款梯度定级**。"仲裁/winner"是借用的多 Agent 辩论范式，实际逻辑是缺口检测 + 严重度排序。
-
 ### 三层层级
 
 | 层 | 说明 |
@@ -213,8 +194,7 @@ ChromaDB（整个向量数据库，存储在 chroma_db/ 目录）
 | `pii_patterns` | PII 识别模式（正则 + 语义） | 0.8 | 数据表字段扫描匹配 |
 | `retention_guidelines` | 数据保留期行业指南 | 0.8 | TTL 合规验证参考 |
 
-**为什么不分在一起？**
-- 法规正文（权重 1.0）和执法案例（权重 0.7）混在一起时，无法表达"法规正文比执法案例更重要"
+- 法规正文（权重 1.0）大于执法案例（权重 0.7），实现"法规正文比执法案例更重要"
 - 不同 Collection 的 chunk 元数据不同（法规有 `article`/`chapter`，指南有 `topic`/`guideline_id`），统一 schema 需要大量空字段
 - 新增文档类型时只需加 Collection + 权重，零改动已有 Agent 逻辑
 
@@ -557,7 +537,22 @@ python -m rag.ingest --force
 # 仅查看文件分配方案（不实际入库）
 python -m rag.ingest --dry-run
 ```
+---
+## 技术栈
 
+| Layer | Technology | Purpose |
+|-------|-----------|---------|
+| Workflow Engine | **LangGraph 1.x** (StateGraph) | Multi-agent orchestration, cyclic edges, subgraph, interrupt |
+| State Management | Python TypedDict + `operator.add` | Type-safe state with Fan-In merge |
+| Vector Database | **ChromaDB 0.5.x** | 5 collections × weighted fusion hybrid search |
+| LLM | OpenAI-compatible API (Qwen / DeepSeek / Ollama) | Configurable, no vendor lock-in |
+| Embedding | OpenAI-compatible API (text-embedding-v3 / bge-m3) | Configurable, Chinese-friendly |
+| PDF Parsing | **PyMuPDF** (fitz) | GDPR/EDPB PDF text extraction |
+| SQL Parsing | **sqlparse** + regex | PII column scan and lineage tracking |
+| Web UI | **Flask** + vanilla HTML/CSS/JS | Zero external frontend dependencies |
+| Testing | **pytest** (27 tests) + **RAGAS** (RAG eval baseline) | E2E scenarios + RAG retrieval quality metrics |
+
+---
 ---
 
 ## 项目文件结构
