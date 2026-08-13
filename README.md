@@ -8,7 +8,6 @@
 
 ## 项目简介
 基于 LangGraph 的多Agent的GDPR 隐私合规审计智能体。输入隐私声明和数据库Schema/DDL脚本，系统自动完成：双 Agent 并行审计 → "声明 vs 实际"交叉核对 → 风险评估 → DPIA 生成 → 人审复核 → 完整合规报告。通过 2 个 Specialist Agent（一个审计"声明的"、一个读"实际的数据库"），"声明 vs 实际"交叉核对识别合规缺口，确定性规则引擎按 GDPR 罚款梯度定级、EDPB WP248 结构化 DPIA 评分，最终生成带法规版本追踪的审计报告。内置 HITL（Human-in-the-Loop）人审机制，支持 DPO 审批结论。
-A LangGraph-powered multi-agent workflow for automated GDPR privacy compliance auditing. It takes privacy policies and database schemas as input, runs two specialist agents in parallel — one extracts what the policy *declares*, the other what the system *actually does* — and cross-checks the two sides to detect policy–practice gaps, it generates EDPB-compliant DPIA reports.
 
 ---
 
@@ -16,20 +15,19 @@ A LangGraph-powered multi-agent workflow for automated GDPR privacy compliance a
 
 | 特点 | 说明 |
 |------|------|
-| 🧠 **Multi-Agent 并行审计** | Privacy Doc Auditor + Data Schema Auditor 通过 LangGraph `Send()` API 并行执行，`operator.add` 安全合并结果 |
-| ⚖️ **"声明 vs 实际"交叉核对 + 规则引擎定级** | 双 Agent对比声明-实际识别差异（超出声明采集 / 未申报跨境 / 超期保留 / 超授权使用）；`GDPRPriorityEngine`（GDPR 罚款梯度硬编码规则）按严重度定级，LLM 不碰裁决定性，仅同权重情境补判 + 生成解释 |
+| ⚖️ 并行Multi-Agent**"声明 vs 实际"交叉核对** | Multi-Agent 并行审计，对比声明-实际识别差异（超出声明采集 / 未申报跨境 / 超期保留 / 超授权使用）；GDPR罚款梯度硬编码先做确定性裁决，无幻觉、可审计、可复现，LLM仅做同权重情境补判和生成解释 |
 | 📋 **EDPB WP248 结构化 DPIA 评分** | 7 维度 × 权重 × 硬性标准。风险识别维度（< 0.6）有一票否决权，防止 Reflection Agent 串通作弊 |
 | 🔍 **多 Collection 分层 RAG** | ChromaDB 5 个 Collection 按知识类型分库，搜索时加权融合。法规正文权重1.0大于执法案例权重0.7 |
-| 🔄 **4 条循环回边（DCG，非 DAG）** | 缺口定级失败→重处理 / 证据补充 / DPO 编辑重评估 / DPIA 反思迭代 |
-| 👁️ **HITL 人审（interrupt）** | 基于 LangGraph `interrupt()` 机制，DPO 审批整份结论（Approve / Edit risk_tier / Reject → INCONCLUSIVE） |
-| 📅 **法规版本透明展示** | 审计报告 footer 展示三组日期：审计日期 / RAG 构建日期 / 法规版本日期。诚实展示，不做自动"过时"判断 |
-| ✅ **引用验证防幻觉** | 每条 finding 引用的 GDPR 条款号（如 Art.7, Art.44）程序化验证是否真实存在，不存在则标记/移除 |
+| 🔄 **4 条循环回边（DCG）** | 缺口定级失败→重处理 / 证据补充 / DPO 编辑重评估 / DPIA 反思迭代 （DCG，非 DAG）|
+| 👁️ **HITL 人审** | 基于 LangGraph `interrupt()` 机制，DPO 审批整份结论（Approve / Edit risk_tier / Reject → INCONCLUSIVE） |
+| 📅 **法规版本透明展示** | 审计报告展示版本和日期，可追溯：审计日期 / RAG 构建日期 / 法规版本日期。诚实展示，不自动判断过时 |
+| ✅ **引用验证防幻觉** | 每条风险必须引用 GDPR 条款号（如 Art.7, Art.44），程序化验证是否真实存在，不存在则移除 |
 
 ---
 
 ## 设计优势
 
-1. **缺口定级不是 LLM 自由发挥** — 先过 `GDPRPriorityEngine`（硬编码罚款梯度），LLM 不碰裁决定性，只做同权重情境补判和写解释。可复现、可审计、低幻觉
+1. **缺口定级不是 LLM 自由发挥** — 先过 `GDPRPriorityEngine`（按罚款梯度定级），LLM 不碰裁决定性，只做同权重情境补判和写解释。可复现、可审计、低幻觉
 
 2. **DPIA 质量不是 LLM "觉得好不好"** — EDPB WP248 官方量表：7 维度 × 权重 × 硬性标准。风险识别维度 < 0.6 直接一票否决总分归零。Reflection Agent不能用自己的审美评分。
 
