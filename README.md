@@ -4,13 +4,13 @@
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python)](#)
 [![ChromaDB](https://img.shields.io/badge/ChromaDB-0.5.x-FF6B35)](#)  
 *AI-powered multi-agent system for automated GDPR privacy compliance auditing.*  
-*基于 LangGraph 的多 Agent 工作流，自动化 GDPR 隐私合规审计。输入隐私声明文档和/或数据库表结构（SQL DDL），系统自动完成：双 Agent 并行审计 → 冲突消解 → 风险评估 → DPIA 生成 → 人审复核 → 完整合规报告。
+*基于 LangGraph 的多 Agent 工作流，自动化 GDPR 隐私合规审计。输入隐私声明文档和/或数据库表结构（SQL DDL），系统自动完成：双 Agent 并行审计 → "声明 vs 实际"交叉核对 → 风险评估 → DPIA 生成 → 人审复核 → 完整合规报告。
 
 ---
 
 ## 项目简介
-AI Compliance Audit Agent 是一个基于 LangGraph 的多 Agent 工作流系统，专为 GDPR 隐私合规审计设计。系统接收隐私政策和数据库 Schema 作为输入，通过 2 个 Specialist Agent 并行分析、规则引擎 + LLM 双层冲突消解、EDPB WP248 结构化 DPIA 评分，最终生成带法规版本追踪的审计报告。内置 HITL（Human-in-the-Loop）人审机制，支持 DPO 审批结论。
-AI Compliance Audit Agent is a LangGraph-powered multi-agent workflow for automated GDPR privacy compliance auditing. It takes privacy policies and database schemas as input, runs parallel analysis via two specialist agents, resolves conflicts through a hybrid rule-engine + LLM architecture, generates EDPB-compliant DPIA reports, and supports human-in-the-loop review. Every finding includes citation verification against the real GDPR article registry.
+AI Compliance Audit Agent 是一个基于 LangGraph 的多 Agent 工作流系统，专为 GDPR 隐私合规审计设计。系统接收隐私政策和数据库 Schema 作为输入，通过 2 个 Specialist Agent 各握审计等式一边（一个读"声明的"、一个读"实际的"），"声明 vs 实际"交叉核对识别合规缺口，确定性规则引擎按 GDPR 罚款梯度定级、EDPB WP248 结构化 DPIA 评分，最终生成带法规版本追踪的审计报告。内置 HITL（Human-in-the-Loop）人审机制，支持 DPO 审批结论。
+AI Compliance Audit Agent is a LangGraph-powered multi-agent workflow for automated GDPR privacy compliance auditing. It takes privacy policies and database schemas as input, runs two specialist agents in parallel — one extracts what the policy *declares*, the other what the system *actually does* — and cross-checks the two sides to detect policy–practice gaps (out-of-scope collection, undeclared cross-border transfer, retention mismatch, over-authorised use). Severity is graded by a deterministic rule engine, it generates EDPB-compliant DPIA reports, and supports human-in-the-loop review. Every finding includes citation verification against the real GDPR article registry.
 
 ---
 
@@ -19,10 +19,10 @@ AI Compliance Audit Agent is a LangGraph-powered multi-agent workflow for automa
 | 特点 | 说明 |
 |------|------|
 | 🧠 **Multi-Agent 并行审计** | Privacy Doc Auditor + Data Schema Auditor 通过 LangGraph `Send()` API 并行执行，`operator.add` 安全合并结果 |
-| ⚖️ **规则引擎 + LLM 双层冲突消解** | 80% 常规冲突由 `GDPRPriorityEngine`（GDPR 罚款梯度硬编码规则）直接裁决；LLM 只负责同级裁决和解释文本生成 |
+| ⚖️ **"声明 vs 实际"交叉核对 + 规则引擎定级** | 双 Agent 各握审计等式一边，比对识别 policy-practice 缺口（超出声明采集 / 未申报跨境 / 超期保留 / 超授权使用）；`GDPRPriorityEngine`（GDPR 罚款梯度硬编码规则）按严重度定级，LLM 不碰裁决定性，仅同权重情境补判 + 生成解释 |
 | 📋 **EDPB WP248 结构化 DPIA 评分** | 7 维度 × 权重 × 硬性标准。风险识别维度有一票否决权（< 0.6 → 总分归零），防止 Reflection Agent 串通作弊 |
 | 🔍 **多 Collection 分层 RAG** | ChromaDB 5 个 Collection 按知识类型分库，搜索时加权融合。法规正文权重 1.0，执法案例 0.7 |
-| 🔄 **4 条循环回边（DCG，非 DAG）** | 冲突重仲裁 / 证据补充 / DPO 编辑重评估 / DPIA 反思迭代 |
+| 🔄 **4 条循环回边（DCG，非 DAG）** | 缺口定级失败→重处理 / 证据补充 / DPO 编辑重评估 / DPIA 反思迭代 |
 | 👁️ **HITL 人审（interrupt）** | 基于 LangGraph `interrupt()` 机制，DPO 审批整份结论（Approve / Edit risk_tier / Reject → INCONCLUSIVE） |
 | 📅 **法规版本透明展示** | 审计报告 footer 展示三组日期：审计日期 / RAG 构建日期 / 法规版本日期。诚实展示，不做自动"过时"判断 |
 | ✅ **引用验证防幻觉** | 每条 finding 引用的 GDPR 条款号（如 Art.7, Art.44）程序化验证是否真实存在，不存在则标记/移除 |
@@ -31,7 +31,7 @@ AI Compliance Audit Agent is a LangGraph-powered multi-agent workflow for automa
 
 ## 设计优势
 
-1. **冲突消解不是 LLM 自由发挥** — 先过 `GDPRPriorityEngine`（硬编码罚款梯度），LLM 只处理同级冲突和写解释。合规审计让 LLM 直接裁决风险太大了。
+1. **缺口定级不是 LLM 自由发挥** — 先过 `GDPRPriorityEngine`（硬编码罚款梯度），LLM 不碰裁决定性，只做同权重情境补判和写解释。合规审计让 LLM 直接裁决风险太大了。
 
 2. **DPIA 质量不是 LLM "觉得好不好"** — EDPB WP248 官方量表：7 维度 × 权重 × 硬性标准。风险识别维度 < 0.6 直接一票否决总分归零。Reflection Agent 不能用自己的审美评分。
 
@@ -98,8 +98,8 @@ graph TD
         data_schema_auditor["🗄️ Data Schema Auditor<br/><small>SQL DDL ReAct Agent</small>"]
     end
 
-    %% ═══════ 阶段 2: 冲突消解 ═══════
-    conflict_resolution["⚖️ conflict_resolution<br/><small>双层冲突消解子图<br/>规则引擎 + LLM</small>"]
+    %% ═══════ 阶段 2: 声明 vs 实际交叉核对 ═══════
+    conflict_resolution["⚖️ conflict_resolution<br/><small>声明 vs 实际交叉核对<br/>缺口检测 + 严重度定级</small>"]
 
     %% ═══════ 阶段 3: 综合分析 + 风险 ═══════
     synthesis_agent["🧩 synthesis_agent<br/><small>综合分析</small>"]
@@ -160,17 +160,19 @@ graph TD
     class conflict_resolution,dpia_generator engine
 ```
 
+> **一个重要的表述精确性**：代码里这个子图仍叫 `conflict_resolution`（这是真实节点名），但更准确的说法是——双 Agent 不是"两个 LLM 吵架"，它们各自握着审计等式的一边（一个提取"声明的"、一个提取"实际的"）；比较器做的是**政策-实践缺口检测**，规则引擎做的是**按 GDPR 罚款梯度定级**。"仲裁/winner"是借用的多 Agent 辩论范式，实际逻辑是缺口检测 + 严重度排序。
+
 ### 三层层级
 
 | 层 | 说明 |
 |----|------|
 | **Layer 1** | 阶段状态机：INIT → EVIDENCE → ANALYSIS → REPORT |
-| **Layer 2** | 阶段内部：2 Agent Fan-Out + Conflict Resolution 子图 + HITL + DPIA Reflection |
+| **Layer 2** | 阶段内部：2 Agent Fan-Out + "声明 vs 实际"交叉核对子图 + HITL + DPIA Reflection |
 | **Layer 3** | 每个 Agent 内部的 ReAct 工具循环（LLM Think → Act → Observe） |
 
 ### 4 条循环回边（DCG，不是 DAG）
 
-1. 冲突消解失败 → 重仲裁
+1. 缺口定级失败 → 重处理
 2. 证据不足 → 定向 RAG 补充
 3. DPO edit → 重评估（回 synthesis_agent）
 4. DPIA 质量不达标 → 重生成（回 dpia_generator）
@@ -575,7 +577,7 @@ GDPR_Privacy_Auditor_Agent/
 │   └── data_schema.py         ← Data Schema Auditor (ReAct Agent)
 │
 ├── subgraphs/
-│   └── conflict.py            ← 冲突消解子图
+│   └── conflict.py            ← "声明 vs 实际"交叉核对子图（缺口检测 + 严重度定级）
 │
 ├── rules/
 │   ├── priority.py            ← GDPRPriorityEngine（条款权重引擎）
@@ -619,7 +621,7 @@ GDPR_Privacy_Auditor_Agent/
 - StateGraph + TypedDict — 类型安全的图状态管理
 - Send() API — Fan-Out 动态并发
 - operator.add — Fan-In 安全合并
-- SubGraph — 冲突消解作为独立子图
+- SubGraph — "声明 vs 实际"交叉核对作为独立子图
 - interrupt() — HITL 人审中断点
 - Conditional Edges — 路由函数控制分支
 - Cyclic Edges — 4 条循环回边（不是 DAG）
