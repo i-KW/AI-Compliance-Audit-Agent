@@ -436,10 +436,6 @@ python tests/test_ragas_baseline.py
 
 ## 法规版本展示设计（诚实展示，不做判断）
 
-### 设计理念
-
-审计报告 footer 展示以下信息：
-
 ```
 本审计截至 2026-06-10 审计，基于 2026-06-09 构建的 RAG 资料和数据的以下法规版本：
 
@@ -464,13 +460,7 @@ python tests/test_ragas_baseline.py
 | **RAG 构建日期** | 知识库最后一次从 PDF 重建的时间 | `2026-06-09` | 运维人员（运行 `ingest_all_pdfs()` 时记录） |
 | **法规版本日期** | 法规/指南自身的版本和生效日期 | `GDPR v1.0 (2018-05-25)` | 法规原文（由 PDF 元数据定义） |
 
-### 类比：论文引用
-
-这和学术论文的参考文献是同样的道理：
-
-- 论文引用一篇 2005 年的论文，不标注"这篇过时了"
-- 读者看到引用年份，自然知道这是哪一年的研究成果
-- 审计报告同理——列出法规版本，读者自行判断时效性是否满足需求
+类比论文引用：审计报告同理——列出法规版本，读者自行判断时效性是否满足需求，不标注"这篇过时了"
 
 ---
 
@@ -605,7 +595,7 @@ GDPR_Privacy_Auditor_Agent/
 
 ---
 
-## 面试知识点索引
+## 相关知识
 
 ### LangGraph
 - StateGraph + TypedDict — 类型安全的图状态管理
@@ -614,7 +604,7 @@ GDPR_Privacy_Auditor_Agent/
 - SubGraph — "声明 vs 实际"交叉核对作为独立子图
 - interrupt() — HITL 人审中断点
 - Conditional Edges — 路由函数控制分支
-- Cyclic Edges — 4 条循环回边（不是 DAG）
+- Cyclic Edges — 4 条循环回边（DCG，非DAG）
 - InMemorySaver — 状态持久化
 
 ### RAG / 向量数据库
@@ -625,8 +615,3 @@ GDPR_Privacy_Auditor_Agent/
 - 幂等性设计 — 重复运行不产生重复数据
 - 搜索失败回退 — 嵌入不可用时降级到关键词匹配
 - RAGAS 基线评测 — context_precision / recall / faithfulness / answer_relevancy 4 指标
-
-### 法规版本展示
-- 诚实展示，不做判断 — 审计报告列出使用的法规版本，由 DPO 自行判断时效性
-- 三组日期分离 — 审计日期 / RAG 构建日期 / 法规版本日期，各司其职
-- 论文引用类比 — 审计引用法规版本 = 论文引用参考文献，只提供出处不判断新旧
